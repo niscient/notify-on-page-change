@@ -1,5 +1,5 @@
 """
-notify_on_page_change v1.1
+notify_on_page_change v1.2
 
 Monitors web pages for changes that appear when the webpage is printed in a text-only
 format.
@@ -59,14 +59,17 @@ def setup_logger(file_path=None):
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s',
                                   datefmt='%Y-%m-%d %H:%M:%S')
 
-    if file_path is not None:
-        handler = logging.FileHandler(file_path)
-        handler.setFormatter(formatter)
-        g_logger.addHandler(handler)
-
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
     g_logger.addHandler(handler)
+
+    if file_path is not None:
+        try:
+            handler = logging.FileHandler(file_path)
+        except PermissionError:
+            raise KnownError('Invalid log file path')
+        handler.setFormatter(formatter)
+        g_logger.addHandler(handler)
 
 
 class KnownError(Exception):
