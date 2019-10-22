@@ -1,5 +1,5 @@
 """
-notify_on_page_change v1.0
+notify_on_page_change v1.1
 
 Monitors web pages for changes that appear when the webpage is printed in a text-only
 format.
@@ -23,13 +23,14 @@ Other requirements:
  account: https://myaccount.google.com/lesssecureapps
 """
 
-from __future__ import print_function
 import collections
 import configparser
 import datetime
 import difflib
+import logging
 import os
 import smtplib
+import sys
 import time
 
 from email.mime.text import MIMEText
@@ -37,6 +38,7 @@ from email.mime.text import MIMEText
 import requests
 
 from bs4 import BeautifulSoup
+
 
 SETTINGS_FILE = 'settings.ini'
 PAGES_DIR = 'pages'
@@ -47,7 +49,29 @@ EMAIL_SERVER_SECTION = 'Email Server'
 EMAIL_SUBJECT = 'notify_on_page_change'
 
 
+g_logger = None
+
+def setup_logger(file_path=None):
+    global g_logger
+    g_logger = logging.getLogger('notify_on_page_change')
+    g_logger.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s',
+                                  datefmt='%Y-%m-%d %H:%M:%S')
+
+    if file_path is not None:
+        handler = logging.FileHandler(file_path)
+        handler.setFormatter(formatter)
+        g_logger.addHandler(handler)
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(formatter)
+    g_logger.addHandler(handler)
+
+
 class KnownError(Exception):
+    pass
+class ConfigOptionError(Exception):
     pass
 
 class CheckPage(object):
@@ -79,7 +103,7 @@ def send_email(email_details, subject, body):
         server.send_message(msg)
         server.close()
     except Exception as error:
-        print('Unable to send email:', str(error))
+        g_logger.error('Unable to send email: ' + str(error))
 
 
 def get_readable_page(html):
@@ -99,15 +123,13 @@ def get_readable_page(html):
     return readable
 
 
-def check_change(page_name, url, current_time, email_details):
-    current_time_str = current_time.strftime('%m/%d/%Y %H:%M:%S')
-
+def check_change(page_name, url, email_details):
     try:
         request = requests.get(url)
         new_page_html = request.text
     except Exception:
-        message = '{}: {}: Page inaccessible'.format(current_time_str, page_name)
-        print(message)
+        message = '{}: Page inaccessible'.format(page_name)
+        g_logger.error(message)
         send_email(email_details, EMAIL_SUBJECT, message)
     else:
         new_page_readable = get_readable_page(new_page_html)
@@ -115,8 +137,8 @@ def check_change(page_name, url, current_time, email_details):
         page_file_path = os.path.join(PAGES_DIR, page_name) + '.html'
 
         if not os.path.exists(page_file_path):
-            message = '{}: {}: Created initial page'.format(current_time_str, page_name)
-            print(message)
+            message = '{}: Created initial page'.format(page_name)
+            g_logger.info(message)
             send_email(email_details, EMAIL_SUBJECT, message)
         else:
             with open(page_file_path, 'r') as page_input_file:
@@ -124,20 +146,20 @@ def check_change(page_name, url, current_time, email_details):
                 old_page_readable = get_readable_page(old_page_html)
 
             if old_page_readable == new_page_readable:
-                print('{}: {}: No change'.format(current_time_str, page_name))
+                g_logger.info('{}: No change'.format(page_name))
             else:
                 differences = list(difflib.ndiff(old_page_readable.splitlines(),
                                                  new_page_readable.splitlines()))
 
                 readable_difference = '\n'.join(differences)
 
-                message = '{}: {}: Page changed'.format(current_time_str, page_name) + \
+                message = '{}: Page changed'.format(page_name) + \
                           '\n\nDifferences:' + \
                           '\n--------------------------------\n' + \
                           readable_difference + \
                           '\n--------------------------------\n'
 
-                print(message.encode('utf-8').decode())
+                g_logger.info(message.encode('utf-8').decode())
                 send_email(email_details,
                            EMAIL_SUBJECT,
                            message)
@@ -150,7 +172,8 @@ def get_config_option(config, section, option):
     try:
         return config[section][option]
     except KeyError:
-        raise KnownError('Missing config option: [{}] -> {}'.format(section, option))
+        raise ConfigOptionError('Missing config option: [{}] -> {}'.format(section,
+                                                                           option))
 
 
 def main():
@@ -159,6 +182,17 @@ def main():
 
     if not os.path.exists(PAGES_DIR):
         os.mkdir(PAGES_DIR)
+
+    log_file_path = None
+    try:
+        log_file_path = get_config_option(config,
+                                          PROGRAM_SECTION,
+                                          'log_file')
+    except ConfigOptionError:
+        setup_logger(log_file_path)
+        g_logger.info('No log file specified')
+    else:
+        setup_logger(log_file_path)
 
     notify_email_address = get_config_option(config,
                                              PROGRAM_SECTION,
@@ -221,9 +255,8 @@ def main():
                                         None))
 
     for page in pages_to_check:
-        current_time = datetime.datetime.now()
-        page.last_checked = current_time
-        check_change(page.page_name, page.url, current_time, email_details)
+        page.last_checked = datetime.datetime.now()
+        check_change(page.page_name, page.url, email_details)
 
     while True:
         next_page = None
@@ -237,19 +270,21 @@ def main():
                 next_page_time_due = time_due
 
         sleep_seconds = (next_page_time_due - datetime.datetime.now()).total_seconds()
-        print('Sleeping for {} seconds before checking {}'.format(round(sleep_seconds),
-                                                                  next_page.page_name))
 
         if sleep_seconds > 0:
+            g_logger.debug('Sleeping for {} seconds before checking {}'.format(
+                round(sleep_seconds), next_page.page_name))
             time.sleep(sleep_seconds)
 
-        current_time = datetime.datetime.now()
-        next_page.last_checked = current_time
-        check_change(next_page.page_name, next_page.url, current_time, email_details)
+        next_page.last_checked = datetime.datetime.now()
+        check_change(next_page.page_name, next_page.url, email_details)
 
 
 if __name__ == '__main__':
     try:
         main()
-    except KnownError as error:
-        print(error)
+    except (KnownError, ConfigOptionError) as error:
+        if g_logger is not None:
+            g_logger.critical(str(error))
+        else:
+            print(error)
