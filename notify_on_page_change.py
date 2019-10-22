@@ -1,5 +1,5 @@
 """
-notify_on_page_change v1.2
+notify_on_page_change v1.3
 
 Monitors web pages for changes that appear when the webpage is printed in a text-only
 format.
@@ -35,23 +35,11 @@ import time
 
 from email.mime.text import MIMEText
 
-import requests
 
-from bs4 import BeautifulSoup
-
-
-SETTINGS_FILE = 'settings.ini'
-PAGES_DIR = 'pages'
-
-PROGRAM_SECTION = 'Program'
-EMAIL_SERVER_SECTION = 'Email Server'
-
-EMAIL_SUBJECT = 'notify_on_page_change'
-
-
+LOG_FILE = 'notify_on_page_change.log'
 g_logger = None
 
-def setup_logger(file_path=None):
+def setup_logger():
     global g_logger
     g_logger = logging.getLogger('notify_on_page_change')
     g_logger.setLevel(logging.DEBUG)
@@ -63,13 +51,34 @@ def setup_logger(file_path=None):
     handler.setFormatter(formatter)
     g_logger.addHandler(handler)
 
-    if file_path is not None:
-        try:
-            handler = logging.FileHandler(file_path)
-        except PermissionError:
-            raise KnownError('Invalid log file path')
-        handler.setFormatter(formatter)
-        g_logger.addHandler(handler)
+    try:
+        handler = logging.FileHandler(LOG_FILE)
+    except PermissionError:
+        raise KnownError('Unable to create log file: ' + LOG_FILE)
+    handler.setFormatter(formatter)
+    g_logger.addHandler(handler)
+
+setup_logger()
+
+
+try:
+    import requests
+except ImportError as error:
+    g_logger.critical(str(error))
+
+try:
+    from bs4 import BeautifulSoup
+except ImportError as error:
+    g_logger.critical(str(error))
+
+
+SETTINGS_FILE = 'settings.ini'
+PAGES_DIR = 'pages'
+
+PROGRAM_SECTION = 'Program'
+EMAIL_SERVER_SECTION = 'Email Server'
+
+EMAIL_SUBJECT = 'notify_on_page_change'
 
 
 class KnownError(Exception):
@@ -112,13 +121,13 @@ def send_email(email_details, subject, body):
 def get_readable_page(html):
     soup = BeautifulSoup(html, features='lxml')
 
-    # Remove JavaScript tags from output
+    # Remove JavaScript tags from output.
     for tag in soup(['script', 'style']):
         tag.decompose()
 
     readable = soup.get_text()
 
-    # Remove extra blank lines and such
+    # Remove extra blank lines and such.
     readable = '\n'.join([line.strip(' ')
                           for line in readable.splitlines()
                           if len(line.strip(' ')) > 0])
@@ -180,22 +189,14 @@ def get_config_option(config, section, option):
 
 
 def main():
+    if not os.path.isfile(SETTINGS_FILE):
+        raise KnownError('Unable to find config file: ' + SETTINGS_FILE)
+
     config = configparser.ConfigParser()
     config.read(SETTINGS_FILE)
 
     if not os.path.exists(PAGES_DIR):
         os.mkdir(PAGES_DIR)
-
-    log_file_path = None
-    try:
-        log_file_path = get_config_option(config,
-                                          PROGRAM_SECTION,
-                                          'log_file')
-    except ConfigOptionError:
-        setup_logger(log_file_path)
-        g_logger.info('No log file specified')
-    else:
-        setup_logger(log_file_path)
 
     notify_email_address = get_config_option(config,
                                              PROGRAM_SECTION,
@@ -287,7 +288,4 @@ if __name__ == '__main__':
     try:
         main()
     except (KnownError, ConfigOptionError) as error:
-        if g_logger is not None:
-            g_logger.critical(str(error))
-        else:
-            print(error)
+        g_logger.critical(str(error))
