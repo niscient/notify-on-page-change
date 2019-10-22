@@ -18,7 +18,6 @@ Sample `settings.ini` file:
 ```
 [Program]
 notify_email_address=my_personal_email@emailhost.com
-log_file=notify_on_page_change.log
 
 [Email Server]
 email_address=another_email@emailhost.com
@@ -48,7 +47,7 @@ pip install beautifulsoup4
 python notify_on_page_change.py
 ```
 
-Abort the program by pressing Ctrl+C to stop monitoring for web page changes. Next time you run the program, it will immediately check for updates to the copies of the webpages it downloaded during the previous run (stored in the `pages` directory).
+Abort the program by pressing Ctrl+C to stop monitoring for web page changes. Next time you run the program, it will immediately check for updates to the copies of the webpages it downloaded during the previous run (stored in the `pages` directory). You can see a log of program activity in `notify_on_page_change.log`.
 
 ## Future improvements
 
