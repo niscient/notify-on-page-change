@@ -54,7 +54,7 @@ Abort the program by pressing Ctrl+C to stop monitoring for web page changes. Ne
 
 * Allow checks to be run every X minutes instead of every X hours
 * Allow user to input email server password manually every time program is run
-* Create Windows executable
+* Create Windows and Mac executables
 
 ### Unlikely to be added anytime soon
 * Visual (screenshot-based) partial-page comparisons. Unlikely to be added because:
