@@ -6,7 +6,7 @@ Allows you to specify a bunch of URLs you want to monitor for changes. Email ale
 Changes are detected purely based on a textual representation of the page contents. **Visual, screenshot-based changes are not currently supported**. For example, if a page changes the use of a character `a` to `b`, that change will be detected. But if they change the image used in an `<img>` tag, that won't be detected.
 
 ### Similar programs
-For some reason, there don't seem to be any other program out there which do page change monitoring, although there are many web services which charge a monthly fee. There is an Android app (WWW Notifier Pro) which notifies you when pages change, but iOS limitations prevent this sort of automatic checking. Distill is a Chrome extension which can do page change monitoring, but requires you to make an account to send email reminders (and if you do so, Distill's servers will be used to monitor the pages). Note that some sites deliberately block access attempts from servers known to be used by page monitoring services.
+There aren't many other programs which do page change monitoring, although there are many web services which charge a monthly fee. There is an Android app (WWW Notifier Pro) which notifies you when pages change, but iOS limitations prevent this sort of automatic checking. Distill is a Chrome extension which can do page change monitoring, but requires you to make an account and use Distill's servers to send email reminders. Note that some sites deliberately block access attempts from servers known to be used by page monitoring services.
 
 ## Usage
 
