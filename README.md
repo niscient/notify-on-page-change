@@ -41,14 +41,14 @@ Note that you can set how often each individual page is checked to see if its co
 
 ### Running program
 
-Once you have your config file, install the Python library dependencies (Requests and Beautiful Soup 4) and run the program in Python 3. Assuming `pip` and `python` are your Python 3 pip and python executables, you would run:
+Once you have your config file set up, install the Python library dependencies (Requests and Beautiful Soup 4) and run the program in Python 3. Assuming `pip` and `python` are your Python 3 pip and python executables, you would run:
 ```
 pip install requests
 pip install beautifulsoup4
 python notify_on_page_change.py
 ```
 
-Abort the program by pressing Ctrl+C to stop monitoring for web page changes.
+Abort the program by pressing Ctrl+C to stop monitoring for web page changes. Next time you run the program, it will immediately check for updates to the copies of the webpages it downloaded during the previous run (stored in the `pages` directory).
 
 ## Future improvements
 
